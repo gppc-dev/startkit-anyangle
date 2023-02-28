@@ -2,11 +2,11 @@
 
 ## Submission Instruction
 
-Read the [Submission_Instruction.md](https://github.com/gppc-dev/startkit/blob/anyangle/Submission_Instruction.md).
+Read the [Submission_Instruction.md](https://github.com/gppc-dev/startkit-anyangle/blob/master/Submission_Instruction.md).
 
 ## Problem Definition
 
-Read the [Problem_Definition.md](https://github.com/gppc-dev/startkit/blob/anyangle/Problem_Definition.md).
+Read the [Problem_Definition.md](https://github.com/gppc-dev/startkit-anyangle/blob/master/Problem_Definition.md).
 
 
 
