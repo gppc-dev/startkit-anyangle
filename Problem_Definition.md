@@ -23,7 +23,7 @@ Grid:
     #..#.
     ##...
 
-Euclidean palne:
+Euclidean plane:
 
 <p align="center">
 <img src="./figs/grid_plane.png" height="200">
@@ -37,15 +37,15 @@ Euclidean palne:
 which as stated earlier translates to the top-left corner of a cell on the Euclidean plane.
 For example, all purple points in the following plane are possible start and target positions (as they are open on the grid), while all red points will never be given.
   <p align="center">
-    <img src="figs/grid_plane_start_target.png" height="200" > 
+    <img src="figs/grid_plane_start_target.png" height="200" >
   </p>
 
 ## Path
 For a query `<s, t>`, a valid path is a sequence of **Real Coordinates** `p=<s,v1,...vn,t>`, where any two consecutive coordinates `a` and `b` on the path must be a **valid path segment** (see details in the next section).
 
-The following example has the query `<(0,0), (1,3)>`, and shows a valid paths, the left being the shortest path, the right having points be cell centered. 
+The following example has the query `<(0,0), (1,3)>`, and shows valid paths, the left being the shortest path, the right having points cell centred.
   <p align="center">
-    <img src="figs/grid_plane_path.png" height="200" >  <img src="figs/grid_plane_path_center.png" height="200" > 
+    <img src="figs/grid_plane_path.png" height="200" >  <img src="figs/grid_plane_path_center.png" height="200" >
   </p>
 
 
@@ -65,7 +65,7 @@ For any given two consecutive coordinates `a` and `b` in a path, where the agent
 
 5. Any boundary of a blocked grid cell square that is also the boundary of the map (assume the map's boundary is surrounded by blocked grid cells).
 
-The following examples shows the co-visible green region, where `a` can see any point placed within `b`, and thus as long as the preconditions are followed `b` can be place anywhere in these green areas.
+The following examples show the co-visible green region, where `a` can see any point placed within `b`, and thus as long as the preconditions are followed `b` can be place anywhere in these green areas.
   <p align="center">
     <img src="figs/invalid_segments.png" height="200" width="200">  <img src="figs/invalid_segments_edge.png" height="200" width="200">  <img src="figs/invalid_segments_center.png" height="200" width="200">
   </p>
@@ -98,4 +98,3 @@ The target point similarly must approach from the south-eastern quadrant, exampl
   <p align="center">
     <img src="figs/invalid_segments_target.png" height="200" width="200">
   </p>
-
