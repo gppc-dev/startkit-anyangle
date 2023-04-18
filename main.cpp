@@ -1,3 +1,25 @@
+/*
+Copyright (c) 2023 Grid-based Path Planning Competition and Contributors <https://gppc.search-conference.org/>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
 #include <cstdio>
 #include <ios>
 #include <numeric>
@@ -6,6 +28,7 @@
 #include <unistd.h>
 #include <cmath>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include "ScenarioLoader.h"
 #include "Timer.h"
@@ -13,6 +36,7 @@
 #include "validator/ValidatePath.hpp"
 
 std::string datafile, mapfile, scenfile, flag;
+constexpr double PATH_FIRST_STEP_LENGTH = 20.0;
 const std::string index_dir = "index_data";
 std::vector<bool> mapData;
 int width, height;
@@ -84,17 +108,18 @@ void RunExperiment(void* data) {
 
     thePath.clear();
     typedef Timer::duration dur;
-    dur max_step = dur::zero(), tcost = dur::zero(), tcost20 = dur::zero();
-    bool done = false;
-    int call_num = 0;
+    dur max_step = dur::zero(), tcost = dur::zero(), tcost_first = dur::zero();
+    bool done = false, done_first = false;
     do {
       t.StartTimer();
       done = GetPath(data, s, g, thePath);
       t.EndTimer();
       max_step = std::max(max_step, t.GetElapsedTime());
       tcost += t.GetElapsedTime();
-      if (thePath.size() <= 20 || call_num == 0) tcost20 += t.GetElapsedTime();
-      call_num++;
+      if (!done_first) {
+        tcost_first += t.GetElapsedTime();
+        done_first = GetPathLength(thePath) >= PATH_FIRST_STEP_LENGTH - 1e-6;
+      }
     } while (!done);
     double plen = done?GetPathLength(thePath): 0;
     double ref_len = scen.GetNthExperiment(x).GetDistance();
@@ -104,7 +129,7 @@ void RunExperiment(void* data) {
     fout << mapfile  << "," << scenfile       << ","
          << x        << "," << thePath.size() << ","
          << plen     << "," << ref_len        << ","
-         << tcost.count() << "," << tcost20.count() << "," 
+         << tcost.count() << "," << tcost_first.count() << "," 
          << max_step.count() << std::endl;
     
     // do basic check and print to stderr if problem
