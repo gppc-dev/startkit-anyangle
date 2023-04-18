@@ -13,6 +13,7 @@
 #include "validator/ValidatePath.hpp"
 
 std::string datafile, mapfile, scenfile, flag;
+constexpr double PATH_FIRST_STEP_LENGTH = 20.0;
 const std::string index_dir = "index_data";
 std::vector<bool> mapData;
 int width, height;
@@ -84,8 +85,8 @@ void RunExperiment(void* data) {
 
     thePath.clear();
     typedef Timer::duration dur;
-    dur max_step = dur::zero(), tcost = dur::zero(), tcost20 = dur::zero();
-    bool done = false;
+    dur max_step = dur::zero(), tcost = dur::zero(), tcost_first = dur::zero();
+    bool done = false, done_first = false;
     int call_num = 0;
     do {
       t.StartTimer();
@@ -93,7 +94,10 @@ void RunExperiment(void* data) {
       t.EndTimer();
       max_step = std::max(max_step, t.GetElapsedTime());
       tcost += t.GetElapsedTime();
-      if (thePath.size() <= 20 || call_num == 0) tcost20 += t.GetElapsedTime();
+      if (!done_first) {
+        tcost_first += t.GetElapsedTime();
+        done_first = GetPathLength(thePath) >= PATH_FIRST_STEP_LENGTH - 1e-6;
+      }
       call_num++;
     } while (!done);
     double plen = done?GetPathLength(thePath): 0;
@@ -104,7 +108,7 @@ void RunExperiment(void* data) {
     fout << mapfile  << "," << scenfile       << ","
          << x        << "," << thePath.size() << ","
          << plen     << "," << ref_len        << ","
-         << tcost.count() << "," << tcost20.count() << "," 
+         << tcost.count() << "," << tcost_first.count() << "," 
          << max_step.count() << std::endl;
     
     // do basic check and print to stderr if problem
