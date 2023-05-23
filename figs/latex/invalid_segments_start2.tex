@@ -17,11 +17,11 @@
 
 \tikzstyle{p}=[circle,fill=blue!40, inner sep=0pt, minimum size=4mm]
 
-\draw[-,line width=1.5pt, red ] (m-3-3.north west) -- (m-3-1.center) -- (m-1-1.center);
-\draw[-,line width=1.5pt, red ] (m-3-3.north west) -- (m-1-3.center) -- (m-1-1.center);
+\draw[-,line width=1.5pt, red ] (m-3-3.north west) -- (m-3-1.center) -- (m-1-1.north west);
+\draw[-,line width=1.5pt, red ] (m-3-3.north west) -- (m-1-3.center) -- (m-1-1.north west);
 
 \node[p] at (m-3-3.north west) {$\mathbf{s}$};
-\node[p] at (m-1-1.center) {$\mathbf{t}$};
+\node[p] at (m-1-1.north west) {$\mathbf{t}$};
 \node[p] at (m-3-1.center) {$\mathbf{a}$};
 \node[p] at (m-1-3.center) {$\mathbf{b}$};
 
