@@ -49,7 +49,7 @@ The following example has the query `<(0,0), (1,3)>`, and shows valid paths, the
   </p>
 
 
-**When start and target are the same position, the path must be empty, thus the length will be `0`.** TODO: would not empty be no-solution, should it just be a single point?
+**When start and target are the same position, the path must be empty, thus the length will be `0`.**
 
 ## Valid Path Segments
 
