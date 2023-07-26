@@ -39,6 +39,10 @@ std::unique_ptr<BresenhamRay>& ValidatePath_data()
 template <typename T>
 int ValidatePath(const std::vector<bool>& map, int width, int height, const T& path)
 {
+    if (path.empty())
+        return -1;
+    if (path.size() == 1)
+        return 0;
     auto& rayShooter = ValidatePath_data();
     if (rayShooter == nullptr) {
         rayShooter = std::make_unique<BresenhamRay>();
