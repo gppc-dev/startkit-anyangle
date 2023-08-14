@@ -60,7 +60,7 @@ void PreprocessMap(const std::vector<bool> &bits, int width, int height, const s
  * @param[in] filename The filename you write the preprocessing data to.  Open in write mode.
  * @returns Pointer to data-structure used for search.  Memory should be stored on heap, not stack.
  */
-void *PrepareForSearch(const vector<bool> &bits, int width, int height, const string &filename) {
+void *PrepareForSearch(const vector<bool> &bits, int width, int height, const std::string &filename) {
   ThetaStar* astar = new ThetaStar(&bits, width, height);
   return astar;
 }
