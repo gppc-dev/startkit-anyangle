@@ -27,7 +27,7 @@ SOFTWARE.
 
 namespace inx {
 
-std::unique_ptr<BresenhamRay>& ValidatePath_data()
+inline std::unique_ptr<BresenhamRay>& ValidatePath_data()
 {
     static std::unique_ptr<BresenhamRay> rayShooter;
     return rayShooter;
