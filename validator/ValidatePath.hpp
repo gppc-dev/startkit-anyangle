@@ -27,7 +27,7 @@ SOFTWARE.
 
 namespace inx {
 
-std::unique_ptr<BresenhamRay>& ValidatePath_data()
+inline std::unique_ptr<BresenhamRay>& ValidatePath_data()
 {
     static std::unique_ptr<BresenhamRay> rayShooter;
     return rayShooter;
@@ -39,6 +39,10 @@ std::unique_ptr<BresenhamRay>& ValidatePath_data()
 template <typename T>
 int ValidatePath(const std::vector<bool>& map, int width, int height, const T& path)
 {
+    if (path.empty())
+        return -1;
+    if (path.size() == 1)
+        return 0;
     auto& rayShooter = ValidatePath_data();
     if (rayShooter == nullptr) {
         rayShooter = std::make_unique<BresenhamRay>();
