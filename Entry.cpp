@@ -20,10 +20,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include <algorithm>
-#include <map>
-#include "ThetaStar.h"
 #include "Entry.h"
+#include "BaselineSearch.hxx"
 
 
 /**
@@ -60,9 +58,9 @@ void PreprocessMap(const std::vector<bool> &bits, int width, int height, const s
  * @param[in] filename The filename you write the preprocessing data to.  Open in write mode.
  * @returns Pointer to data-structure used for search.  Memory should be stored on heap, not stack.
  */
-void *PrepareForSearch(const vector<bool> &bits, int width, int height, const std::string &filename) {
-  ThetaStar* astar = new ThetaStar(&bits, width, height);
-  return astar;
+void *PrepareForSearch(const std::vector<bool> &bits, int width, int height, const std::string &filename) {
+  auto* STS = new baseline::SpanningTreeSearch(bits, width, height);
+  return STS;
 }
 
 /**
@@ -85,22 +83,31 @@ void *PrepareForSearch(const vector<bool> &bits, int width, int height, const st
  *          if `false` then `GetPath` will be called again until search is complete.
  */
 bool GetPath(void *data, xyLoc s, xyLoc g, std::vector<xyLoc> &path) {
-
-  ThetaStar* astar = (ThetaStar*)(data);
-  int16_t w = astar->width;
-
-  vector<int> pa(astar->bits->size(), -1);
-  double d = astar->run(s.x, s.y, g.x, g.y, pa);
-  if (d > 0) {
-    int16_t x = static_cast<int16_t>(g.x), y = static_cast<int16_t>(g.y);
-    while (true) {
-      path.push_back({static_cast<double>(x), static_cast<double>(y)});
-      if (x == s.x && y == s.y) break;
-      int cid = y * w + x;
-      x = pa[cid] % w;
-      y = pa[cid] / w;
+  auto* STS = static_cast<baseline::SpanningTreeSearch*>(data);
+  path.clear();
+  if (s.x == g.x && s.y == g.y) {
+    if (STS->get(baseline::Point(s.x, s.y))) {
+      path.push_back(s);
+      path.push_back(s);
     }
-    reverse(path.begin(), path.end());
+    return true;
+  }
+  bool exists = STS->search(baseline::Point(s.x, s.y), baseline::Point(g.x, g.y));
+  if (!exists)
+    return true;
+  // find path
+  assert(!STS->path_head.empty());
+  auto [ith, itt] = std::mismatch(STS->path_head.rbegin(), STS->path_head.rend(), STS->path_tail.rbegin(), STS->path_tail.rend());
+  --ith;
+  for (auto it = STS->path_head.rend(); ; ) {
+    --it;
+    xyLoc L; L.x = it->first; L.y = it->second;
+    path.push_back(L);
+    if (it == ith) break;
+  }
+  for (auto ite = STS->path_tail.rend(); itt != ite; ++itt) {
+    xyLoc L; L.x = itt->first; L.y = itt->second;
+    path.push_back(L);
   }
   return true;
 }
