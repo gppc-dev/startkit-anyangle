@@ -9,8 +9,6 @@
 #include <array>
 #include <memory_resource>
 #include <algorithm>
-#include <fstream>
-#include <set>
 #include <cstdint>
 #include <cassert>
 
@@ -76,12 +74,12 @@ struct Grid
 		cells.assign(width * height, false);
 		for (int y = 0; y < l_height; ++y)
 		for (int x = 0; x < l_width; ++x) {
-			cells[(y+1) * static_cast<int>(width) + (x+1)] = l_cells[y * l_width + x];
+			cells[pack(Point(x+1, y+1))] = l_cells[y * l_width + x];
 		}
 		ambig.assign(cells.size(), false);
 		uint32_t crd = 0;
 		for (uint32_t y = 1; y < height; ++y) {
-			++crd;
+			assert(unpack(crd) == Point(0, y-1));
 			std::uint8_t r1 = static_cast<std::uint8_t>(cells[crd]);
 			std::uint8_t r2 = static_cast<std::uint8_t>(cells[crd+width]);
 			for (uint32_t x = 1; x < width; ++x) {
@@ -91,12 +89,13 @@ struct Grid
 				switch (r1 | (r2 << 2)) {
 				case 0b1001:
 				case 0b0110:
-					ambig[crd+l_width] = true;
+					ambig[crd+width] = true;
 					break;
 				default:
 					break;
 				}
 			}
+			++crd;
 		}
 	}
 
@@ -107,7 +106,7 @@ struct Grid
 	std::vector<Node> nodes;
 };
 
-void path_to_root(const Grid& grid, Point start, std::vector<Point>& out);
+void path_to_root(const Grid& grid, Point start, Point target, std::vector<Point>& out);
 void setup_grid(Grid& grid);
 
 struct SpanningTreeSearch : Grid
@@ -116,30 +115,43 @@ struct SpanningTreeSearch : Grid
 	{
 		setup_grid(*this);
 	}
-	std::vector<Point> path_head;
-	std::vector<Point> path_tail;
+	std::array<std::vector<Point>, 2> path_parts;
+	const std::vector<Point>& get_path() const noexcept { return path_parts[0]; }
 	// bool search found a path
 	bool search(Point s, Point g)
 	{
-		path_to_root(*this, s, path_head);
-		if (!path_head.empty())
-			path_to_root(*this, g, path_tail);
-		return !(path_head.empty() | path_tail.empty()) && path_head.back() == path_tail.back();
+		s = pad(s);
+		g = pad(g);
+		std::array<uint32_t, 2> nodeid{{pack(s), pack(g)}};
+		if (nodes[nodeid[0]].pred == Node::INV || nodes[nodeid[1]].pred == Node::INV)
+			return false;
+		if (nodeid[0] == nodeid[1]) {
+			// zero path case
+			path_parts[0].assign(2, unpad(s));
+			return true;
+		}
+		path_parts[0].clear(); path_parts[1].clear();
+		while (true) {
+			int progressId = 0;
+			if (auto c0 = nodes[nodeid[0]].cost, c1 = nodes[nodeid[1]].cost; c0 == c1) {
+				// same dist, check if same root
+				if (nodeid[0] == nodeid[1]) {
+					path_parts[0].push_back(unpad(unpack(nodeid[progressId])));
+					break; // found least common ancestor
+				}
+				if (c0 == 0)
+					return false; // tree root's are different, no path
+			} else if (c1 > c0) {
+				progressId = 1; // nodeid[1] is longer thus process it first
+			}
+			path_parts[progressId].push_back(unpad(unpack(nodeid[progressId])));
+			nodeid[progressId] = nodes[nodeid[progressId]].pred;
+		}
+		// form path
+		path_parts[0].insert(path_parts[0].end(), path_parts[1].rbegin(), path_parts[1].rend());
+		return true;
 	}
 };
-
-template <typename Pred>
-void debug_grid(const Grid& grid, std::string file, Pred&& pred)
-{
-	std::string line(grid.width + 1, '\n');
-	std::ofstream out(file);
-	for (int y = 0, ye = static_cast<int>(grid.height), xe = static_cast<int>(grid.width); y < ye; ++y) {
-		for (int x = 0; x < xe; ++x) {
-			line[x] = pred(x, y) ? '1' : '0';
-		}
-		out << line;
-	}
-}
 
 void flood_fill(Grid& grid, std::pmr::vector<Point>& out, uint32_t origin, std::pmr::memory_resource* res)
 {
@@ -174,11 +186,13 @@ void dijkstra(Grid& grid, uint32_t origin, std::pmr::memory_resource* res)
 	using node_type = std::pair<uint32_t,uint32_t>;
 	std::priority_queue<node_type, std::pmr::vector<node_type>, std::greater<node_type>> Q(res);
 	auto try_push = [&grid,&Q](uint32_t node, int dx, int dy, uint32_t cost, bool push_ambig) {
+		uint32_t newNode = static_cast<uint32_t>( static_cast<int>(node) + dy * grid.width + dx );
 #ifndef NDEBUG
 		Point p = grid.unpack(node);
+		Point q = grid.unpack(newNode);
 		assert(static_cast<uint32_t>(p.first + dx) < grid.width && static_cast<uint32_t>(p.second + dy) < grid.height);
+		assert(p.first + dx == q.first && p.second + dy == q.second);
 #endif
-		uint32_t newNode = static_cast<uint32_t>( static_cast<int>(node) + dy * grid.width + dx );
 		bool ambig = grid.ambig[newNode];
 		if ( (ambig & !push_ambig) )
 			return;
@@ -211,39 +225,39 @@ void dijkstra(Grid& grid, uint32_t origin, std::pmr::memory_resource* res)
 		// CDEF
 
 		// ambig only first
-		// N
-		if ( (mask & 0b0000'0000'0110'0000u) != 0b0000'0000'0110'0000u ) try_push(node, 0, -1, cost + COST_0, true);
-		// W
-		if ( (mask & 0b0000'0010'0010'0000u) != 0b0000'0010'0010'0000u ) try_push(node, -1, 0, cost + COST_0, true);
-		// NW
-		if ( (mask & 0b0000'0000'0010'0000u) == 0 ) try_push(node, -1, -1, cost + COST_1, true);
-		// N-NW
-		if ( (mask & 0b0000'0000'0010'0010u) == 0 ) try_push(node, -1, -2, cost + COST_2, true);
-		// W-NW
-		if ( (mask & 0b0000'0000'0011'0000u) == 0 ) try_push(node, -2, -1, cost + COST_2, true);
+		// E
+		if ( (mask & 0b0000'0100'0100'0000u) != 0b0000'0100'0100'0000u ) try_push(node, 1, 0, cost + COST_0, false);
+		// S
+		if ( (mask & 0b0000'0110'0000'0000u) != 0b0000'0110'0000'0000u ) try_push(node, 0, 1, cost + COST_0, false);
+		// SE
+		if ( (mask & 0b0000'0100'0000'0000u) == 0 ) try_push(node, 1, 1, cost + COST_1, false);
+		// S-SE
+		if ( (mask & 0b0100'0100'0000'0000u) == 0 ) try_push(node, 1, 2, cost + COST_2, false);
+		// E-SE
+		if ( (mask & 0b0000'1100'0000'0000u) == 0 ) try_push(node, 2, 1, cost + COST_2, false);
 
 		if ( (mask & 0b0000'0110'0110'0000u) != 0b0000'0010'0100'0000u ) {
 			// not ambig point, permit all expansions
-			// E
-			if ( (mask & 0b0000'0100'0100'0000u) != 0b0000'0100'0100'0000u ) try_push(node, 1, 0, cost + COST_0, false);
-			// S
-			if ( (mask & 0b0000'0110'0000'0000u) != 0b0000'0110'0000'0000u ) try_push(node, 0, 1, cost + COST_0, false);
+			// N
+			if ( (mask & 0b0000'0000'0110'0000u) != 0b0000'0000'0110'0000u ) try_push(node, 0, -1, cost + COST_0, true);
+			// W
+			if ( (mask & 0b0000'0010'0010'0000u) != 0b0000'0010'0010'0000u ) try_push(node, -1, 0, cost + COST_0, true);
 			// NE
 			if ( (mask & 0b0000'0000'0100'0000u) == 0 ) try_push(node, 1, -1, cost + COST_1, false);
-			// SE
-			if ( (mask & 0b0000'0100'0000'0000u) == 0 ) try_push(node, 1, 1, cost + COST_1, false);
+			// NW
+			if ( (mask & 0b0000'0000'0010'0000u) == 0 ) try_push(node, -1, -1, cost + COST_1, true);
 			// SW
 			if ( (mask & 0b0000'0010'0000'0000u) == 0 ) try_push(node, -1, 1, cost + COST_1, false);
 			// N-NE
 			if ( (mask & 0b0000'0000'0100'0100u) == 0 ) try_push(node, 1, -2, cost + COST_2, false);
-			// S-SE
-			if ( (mask & 0b0100'0100'0000'0000u) == 0 ) try_push(node, 1, 2, cost + COST_2, false);
+			// N-NW
+			if ( (mask & 0b0000'0000'0010'0010u) == 0 ) try_push(node, -1, -2, cost + COST_2, true);
 			// S-SW
 			if ( (mask & 0b0010'0010'0000'0000u) == 0 ) try_push(node, -1, 2, cost + COST_2, false);
 			// E-NE
 			if ( (mask & 0b0000'0000'1100'0000u) == 0 ) try_push(node, 2, -1, cost + COST_2, false);
-			// E-SE
-			if ( (mask & 0b0000'1100'0000'0000u) == 0 ) try_push(node, 2, 1, cost + COST_2, false);
+			// W-NW
+			if ( (mask & 0b0000'0000'0011'0000u) == 0 ) try_push(node, -2, -1, cost + COST_2, true);
 			// W-SW
 			if ( (mask & 0b0000'0011'0000'0000u) == 0 ) try_push(node, -2, 1, cost + COST_2, false);
 		}
@@ -268,12 +282,6 @@ void setup_grid(Grid& grid)
 		if (grid.cells[i] && grid.nodes[i].pred == Node::INV) {
 			// new cluster
 			flood_fill(grid, cluster, i, &vector_res);
-			debug_grid(grid, "cluster-" + std::to_string(i), [ds=std::set<Point>(cluster.begin(), cluster.end())] (int x, int y) {
-				return ds.count(Point(x, y)) > 0;
-			});
-			debug_grid(grid, "whole-" + std::to_string(i), [&grid] (int x, int y) {
-				return grid.nodes[grid.pack(Point(x, y))].pred == Node::FLOOD_FILL;
-			});
 			assert(!cluster.empty());
 			std::uint64_t sumx = 0, sumy = 0;
 			for (Point p : cluster) {
@@ -282,32 +290,9 @@ void setup_grid(Grid& grid)
 			Point cluster_centre(static_cast<int>(sumx / cluster.size()), static_cast<int>(sumy / cluster.size()));
 			uint32_t cluster_id = grid.pack( *std::min_element(cluster.begin(), cluster.end(), Dist{cluster_centre}) );
 			dijkstra(grid, cluster_id, &vector_res);
-			debug_grid(grid, "pred-" + std::to_string(i), [&grid] (int x, int y) {
-				return grid.nodes[grid.pack(Point(x, y))].pred == Node::FLOOD_FILL;
-			});
 			assert(std::all_of(cluster.begin(), cluster.end(), [&grid] (Point q) { return grid.nodes.at(grid.pack(q)).pred != Node::FLOOD_FILL; }));
 		}
 	}
-}
-
-void path_to_root(const Grid& grid, Point start, std::vector<Point>& out)
-{
-	out.clear();
-	start = Grid::pad(start);
-	if (!grid.get(start))
-		return;
-	uint32_t nodeid = grid.pack(start);
-	const uint32_t size = static_cast<uint32_t>(grid.size());
-	do {
-		out.push_back(Grid::unpad(grid.unpack(nodeid)));
-#ifdef NDEBUG
-		nodeid = grid.nodes[nodeid].pred;
-#else
-		uint32_t oldNode = nodeid;
-		nodeid = grid.nodes[nodeid].pred;
-		assert(nodeid != oldNode);
-#endif
-	} while (nodeid < size);
 }
 
 } // namespace baseline
